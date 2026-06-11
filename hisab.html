@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>পাইকারি হিসাব</title>
+<style>
+:root{--bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#242424;--border:#2e2e2e;--text:#f0f0f0;--text2:#888;--green:#2ecc71;--red:#e74c3c;--blue:#3498db;--r:12px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:15px;min-height:100vh}
+.page{display:none;padding:16px;max-width:480px;margin:0 auto;padding-bottom:40px}
+.page.on{display:block}
+.top-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.top-bar h1{font-size:17px;font-weight:600;flex:1}
+.sub{font-size:11px;color:var(--text2)}
+.gbtn{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap;font-family:inherit}
+.gbtn-blue{background:var(--blue);border-color:var(--blue);color:#fff}
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.scard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.scard .lbl{font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+.scard .val{font-size:20px;font-weight:700}
+.vr{color:var(--red)}.vg{color:var(--green)}.vb{color:var(--blue)}
+.party-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.party-card:active{border-color:var(--blue);background:var(--bg3)}
+.av{width:40px;height:40px;border-radius:50%;background:#1a3a5c;color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.pname{font-size:15px;font-weight:600;margin-bottom:3px}
+.pmeta{font-size:12px;color:var(--text2)}
+.bamt{font-size:15px;font-weight:700}
+.btag{font-size:11px;padding:3px 9px;border-radius:20px;margin-top:4px;display:inline-block}
+.tr{background:rgba(231,76,60,.15);color:var(--red)}
+.tg{background:rgba(46,204,113,.15);color:var(--green)}
+.form-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px}
+label{font-size:13px;color:var(--text2);display:block;margin-bottom:5px;margin-top:12px}
+label:first-of-type{margin-top:0}
+input,select{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;outline:none}
+input:focus{border-color:var(--blue)}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer;margin-top:12px;font-family:inherit}
+.btn-pri{background:var(--blue);color:#fff}
+.type-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.tbtn{padding:14px;border-radius:10px;border:2px solid var(--border);background:var(--bg3);color:var(--text2);font-size:14px;font-weight:600;cursor:pointer;text-align:center;font-family:inherit}
+.tbtn.on-dr{border-color:var(--blue);background:rgba(52,152,219,.12);color:var(--blue)}
+.tbtn.on-cr{border-color:var(--green);background:rgba(46,204,113,.12);color:var(--green)}
+.tx-item{padding:11px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+.tx-item:last-child{border-bottom:none}
+.tx-type{font-size:13px;font-weight:600}
+.tdr{color:var(--blue)}.tcr{color:var(--green)}
+.tx-meta{font-size:11px;color:var(--text2);margin-top:3px}
+.tx-amt{font-size:14px;font-weight:700}
+.dbtn{background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:0 0 0 8px;opacity:.5}
+.baki-box{border-radius:var(--r);padding:18px;text-align:center;margin-bottom:14px}
+.baki-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;opacity:.8}
+.baki-big{font-size:32px;font-weight:800}
+.mrow{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none}
+.mrow::-webkit-scrollbar{display:none}
+.mchip{padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:inherit}
+.mchip.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+.sw{position:relative;margin-bottom:12px}
+.sw input{padding-left:38px}
+.si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text2);font-size:17px;pointer-events:none}
+.empty{text-align:center;padding:36px 20px;color:var(--text2);font-size:14px}
+.stitle{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.info-row{display:flex;gap:8px;margin-bottom:8px;font-size:13px}
+.info-lbl{color:var(--text2);min-width:65px}
+.info-val{color:var(--text);font-weight:500}
+.btn-danger{background:transparent;border:1px solid rgba(231,76,60,.5);color:var(--red);padding:12px;border-radius:10px;font-size:14px;cursor:pointer;width:100%;font-family:inherit;margin-top:8px}
+/* ব্যাকআপ বাটন */
+.backup-btn{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px;font-size:14px;cursor:pointer;width:100%;font-family:inherit;margin-top:8px;text-align:center;display:block}
+</style>
+</head>
+<body>
+
+<!-- হোম -->
+<div id="pg-home" class="page on">
+  <div class="top-bar">
+    <div><h1>পাইকারি হিসাব</h1><div class="sub" id="home-date"></div></div>
+    <button class="gbtn" onclick="go('add-party')">+ নতুন পার্টি</button>
+  </div>
+  <div class="summary" id="home-summary"></div>
+  <div class="mrow" id="mrow"></div>
+  <div class="sw"><span class="si">🔍</span><input type="text" id="psearch" placeholder="পার্টি খুঁজুন..." oninput="renderHome()"></div>
+  <div id="plist"></div>
+</div>
+
+<!-- পার্টি বিস্তারিত -->
+<div id="pg-detail" class="page">
+  <div class="top-bar">
+    <button class="gbtn" onclick="go('home')">← ফিরুন</button>
+    <h1 id="dtitle" style="font-size:15px"></h1>
+    <button class="gbtn gbtn-blue" onclick="go('add-tx')">+ লেনদেন</button>
+  </div>
+  <div class="baki-box" id="baki-box">
+    <div class="baki-lbl">মোট বাকি</div>
+    <div class="baki-big" id="baki-big"></div>
+  </div>
+  <div class="form-card" id="party-info-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="stitle" style="margin:0">পার্টির তথ্য</div>
+      <button class="gbtn" onclick="go('edit-party')" style="font-size:12px;padding:6px 10px">✏️ এডিট</button>
+    </div>
+    <div id="party-info"></div>
+  </div>
+  <div class="summary" id="dsummary"></div>
+  <div class="form-card">
+    <div class="stitle">লেনদেন ইতিহাস</div>
+    <div id="txlist"></div>
+  </div>
+</div>
+
+<!-- লেনদেন যোগ -->
+<div id="pg-add-tx" class="page">
+  <div class="top-bar">
+    <button class="gbtn" onclick="go('detail')">← ফিরুন</button>
+    <h1 style="font-size:15px" id="tx-title"></h1>
+  </div>
+  <div class="form-card">
+    <div class="type-row">
+      <button class="tbtn on-dr" id="btn-dr" onclick="setType('dr')">📦 মাল দিলাম</button>
+      <button class="tbtn" id="btn-cr" onclick="setType('cr')">💵 পেমেন্ট নিলাম</button>
+    </div>
+    <label>টাকার পরিমাণ *</label>
+    <input type="number" id="tx-amt" placeholder="০" inputmode="numeric" style="font-size:22px;font-weight:700">
+    <div class="r2">
+      <div><label>মেমো নং</label><input type="text" id="tx-memo" placeholder="MEM-001"></div>
+      <div><label>তারিখ</label><input type="date" id="tx-date"></div>
+    </div>
+    <label>বিবরণ</label>
+    <input type="text" id="tx-note" placeholder="যেমন: সিমেন্ট ৫০ ব্যাগ">
+    <button class="btn btn-pri" onclick="saveTx()">✓ সেভ করুন</button>
+  </div>
+</div>
+
+<!-- নতুন পার্টি -->
+<div id="pg-add-party" class="page">
+  <div class="top-bar">
+    <button class="gbtn" onclick="go('home')">← ফিরুন</button>
+    <h1 style="font-size:15px">নতুন পার্টি</h1>
+  </div>
+  <div class="form-card">
+    <label>পার্টির নাম *</label>
+    <input type="text" id="np-name" placeholder="যেমন: রহিম ট্রেডার্স">
+    <div class="r2">
+      <div><label>ফোন</label><input type="tel" id="np-phone" placeholder="০১৮XXXXXXXX"></div>
+      <div><label>ঠিকানা</label><input type="text" id="np-addr" placeholder="এলাকা"></div>
+    </div>
+    <label>পুরনো বাকি (থাকলে)</label>
+    <input type="number" id="np-opening" placeholder="০" inputmode="numeric">
+    <button class="btn btn-pri" onclick="saveParty()">✓ যোগ করুন</button>
+  </div>
+</div>
+
+<!-- পার্টি এডিট — এখানে মুছুন বাটনও আছে -->
+<div id="pg-edit-party" class="page">
+  <div class="top-bar">
+    <button class="gbtn" onclick="go('detail')">← ফিরুন</button>
+    <h1 style="font-size:15px">পার্টি এডিট</h1>
+  </div>
+  <div class="form-card">
+    <label>পার্টির নাম *</label>
+    <input type="text" id="ep-name" placeholder="পার্টির নাম">
+    <div class="r2">
+      <div><label>ফোন</label><input type="tel" id="ep-phone" placeholder="ফোন নম্বর"></div>
+      <div><label>ঠিকানা</label><input type="text" id="ep-addr" placeholder="ঠিকানা"></div>
+    </div>
+    <label>প্রারম্ভিক বাকি</label>
+    <input type="number" id="ep-opening" placeholder="০" inputmode="numeric">
+    <button class="btn btn-pri" onclick="updateParty()">✓ আপডেট করুন</button>
+    <!-- মুছুন বাটন এডিট পেজেই -->
+    <div style="margin-top:20px;padding-top:16px;border-top:1px dashed rgba(231,76,60,.3)">
+      <div style="font-size:12px;color:var(--red);margin-bottom:8px;opacity:.7">⚠️ সতর্ক — একবার মুছলে ফেরত আসবে না</div>
+      <button class="btn-danger" id="del-party-btn">🗑️ এই পার্টি ও সব লেনদেন মুছুন</button>
+    </div>
+  </div>
+</div>
+
+<!-- সেটিংস / ব্যাকআপ -->
+<div id="pg-settings" class="page">
+  <div class="top-bar">
+    <button class="gbtn" onclick="go('home')">← ফিরুন</button>
+    <h1 style="font-size:15px">সেটিংস ও ব্যাকআপ</h1>
+  </div>
+  <div class="form-card">
+    <div class="stitle">ব্যাকআপ</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">ডেটা ডাউনলোড করুন → Google Drive এ আপলোড করুন → নিরাপদ থাকুন।</p>
+    <button class="btn btn-pri" onclick="downloadBackup()">⬇️ ব্যাকআপ ডাউনলোড করুন</button>
+    <div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text2);line-height:1.7">
+      <strong style="color:var(--text)">📱 হোম স্ক্রিনে যোগ করুন:</strong><br>
+      Chrome মেনু (⋮) → <strong style="color:var(--text)">Share</strong> → <strong style="color:var(--text)">Add to Home Screen</strong> → Add
+    </div>
+  </div>
+  <div class="form-card">
+    <div class="stitle">ব্যাকআপ থেকে রিস্টোর</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">আগের ব্যাকআপ ফাইল বেছে নিন:</p>
+    <input type="file" id="restore-file" accept=".json" style="font-size:13px">
+    <button class="btn btn-pri" onclick="restoreBackup()" style="margin-top:10px">↑ রিস্টোর করুন</button>
+  </div>
+</div>
+
+<script>
+const MONTHS=['জানু','ফেব্রু','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টে','অক্টো','নভে','ডিসে'];
+let parties=[],txs=[],curPid=null,curType='dr',selMonth='all';
+
+function load(){
+  try{parties=JSON.parse(localStorage.getItem('hisab_p')||'[]')}catch(e){parties=[]}
+  try{txs=JSON.parse(localStorage.getItem('hisab_t')||'[]')}catch(e){txs=[]}
+}
+function save(){
+  try{localStorage.setItem('hisab_p',JSON.stringify(parties))}catch(e){}
+  try{localStorage.setItem('hisab_t',JSON.stringify(txs))}catch(e){}
+}
+function getBaki(pid){
+  const p=parties.find(x=>x.id===pid);if(!p)return 0;
+  let b=p.opening||0;
+  txs.filter(t=>t.pid===pid).forEach(t=>{b+=t.type==='dr'?t.amt:-t.amt});
+  return b;
+}
+function fmt(n){return '৳'+Math.round(Math.abs(n)).toLocaleString('en-IN')}
+function today(){return new Date().toISOString().split('T')[0]}
+function ini(name){return name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase()||'??'}
+
+function go(pg){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.getElementById('pg-'+pg).classList.add('on');
+  window.scrollTo(0,0);
+  if(pg==='home') renderHome();
+  if(pg==='detail'&&curPid) renderDetail(curPid);
+  if(pg==='add-tx') initTx();
+  if(pg==='edit-party') initEditParty();
+}
+
+function renderHome(){
+  const now=new Date();
+  document.getElementById('home-date').textContent=now.getDate()+' '+MONTHS[now.getMonth()]+' '+now.getFullYear();
+  const q=(document.getElementById('psearch')||{}).value||'';
+  const filtered=parties.filter(p=>p.name.includes(q)||(p.phone||'').includes(q));
+  const totalBaki=parties.reduce((s,p)=>s+Math.max(0,getBaki(p.id)),0);
+  const bkCount=parties.filter(p=>getBaki(p.id)>0).length;
+  const thisM=today().slice(0,7);
+  const mDr=txs.filter(t=>t.date&&t.date.slice(0,7)===thisM&&t.type==='dr').reduce((s,t)=>s+t.amt,0);
+  const mCr=txs.filter(t=>t.date&&t.date.slice(0,7)===thisM&&t.type==='cr').reduce((s,t)=>s+t.amt,0);
+  document.getElementById('home-summary').innerHTML=`
+    <div class="scard"><div class="lbl">মোট পাওনা</div><div class="val vr">${fmt(totalBaki)}</div></div>
+    <div class="scard"><div class="lbl">বাকি পার্টি</div><div class="val vr">${bkCount} জন</div></div>
+    <div class="scard"><div class="lbl">এই মাসে বিক্রয়</div><div class="val vb">${fmt(mDr)}</div></div>
+    <div class="scard"><div class="lbl">এই মাসে পেমেন্ট</div><div class="val vg">${fmt(mCr)}</div></div>`;
+  const months=[...new Set(txs.filter(t=>t.date).map(t=>t.date.slice(0,7)))].sort().reverse();
+  document.getElementById('mrow').innerHTML=
+    `<button class="mchip${selMonth==='all'?' on':''}" onclick="selMonth='all';renderHome()">সব</button>`+
+    months.map(m=>{const[y,mo]=m.split('-');return`<button class="mchip${selMonth===m?' on':''}" onclick="selMonth='${m}';renderHome()">${MONTHS[parseInt(mo)-1]} ${y}</button>`}).join('')+
+    `<button class="mchip" onclick="go('settings')" style="margin-left:8px">⚙️ সেটিংস</button>`;
+  document.getElementById('plist').innerHTML=filtered.length?filtered.map(p=>{
+    const baki=getBaki(p.id);
+    const ptxs=selMonth==='all'?txs.filter(t=>t.pid===p.id):txs.filter(t=>t.pid===p.id&&t.date&&t.date.slice(0,7)===selMonth);
+    const mDrP=ptxs.filter(t=>t.type==='dr').reduce((s,t)=>s+t.amt,0);
+    const mCrP=ptxs.filter(t=>t.type==='cr').reduce((s,t)=>s+t.amt,0);
+    const txCount=txs.filter(t=>t.pid===p.id).length;
+    return`<div class="party-card" onclick="openParty(${p.id})">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="av">${ini(p.name)}</div>
+        <div><div class="pname">${p.name}</div>
+        <div class="pmeta">${selMonth==='all'?txCount+' লেনদেন':'মাল '+fmt(mDrP)+' · পেমেন্ট '+fmt(mCrP)}</div></div>
+      </div>
+      <div style="text-align:right">
+        <div class="bamt ${baki>0?'vr':'vg'}">${fmt(baki)}</div>
+        <div class="btag ${baki>0?'tr':'tg'}">${baki>0?'বাকি':'পরিশোধ'}</div>
+      </div>
+    </div>`;
+  }).join(''):`<div class="empty">কোনো পার্টি নেই<br><br><button class="btn btn-pri" style="width:auto;padding:10px 20px" onclick="go('add-party')">+ নতুন পার্টি যোগ করুন</button></div>`;
+}
+
+function openParty(pid){curPid=pid;go('detail')}
+
+function renderDetail(pid){
+  const p=parties.find(x=>x.id===pid);if(!p)return;
+  const baki=getBaki(pid);
+  const ptxs=txs.filter(t=>t.pid===pid).sort((a,b)=>b.id-a.id);
+  const totDr=ptxs.filter(t=>t.type==='dr').reduce((s,t)=>s+t.amt,0)+(p.opening||0);
+  const totCr=ptxs.filter(t=>t.type==='cr').reduce((s,t)=>s+t.amt,0);
+  const thisM=today().slice(0,7);
+  const mDr=ptxs.filter(t=>t.type==='dr'&&t.date&&t.date.slice(0,7)===thisM).reduce((s,t)=>s+t.amt,0);
+  const mCr=ptxs.filter(t=>t.type==='cr'&&t.date&&t.date.slice(0,7)===thisM).reduce((s,t)=>s+t.amt,0);
+  document.getElementById('dtitle').textContent=p.name;
+  document.getElementById('tx-title').textContent=p.name;
+  const bb=document.getElementById('baki-box');
+  bb.style.background=baki>0?'rgba(231,76,60,.12)':'rgba(46,204,113,.12)';
+  bb.style.border=`1px solid ${baki>0?'rgba(231,76,60,.3)':'rgba(46,204,113,.3)'}`;
+  document.getElementById('baki-big').style.color=baki>0?'var(--red)':'var(--green)';
+  document.getElementById('baki-big').textContent=fmt(baki);
+  document.getElementById('party-info').innerHTML=`
+    <div class="info-row"><span class="info-lbl">📞 ফোন</span><span class="info-val">${p.phone||'দেওয়া নেই'}</span></div>
+    <div class="info-row"><span class="info-lbl">📍 ঠিকানা</span><span class="info-val">${p.addr||'দেওয়া নেই'}</span></div>
+    <div class="info-row"><span class="info-lbl">💰 প্রারম্ভিক</span><span class="info-val">${fmt(p.opening||0)}</span></div>`;
+  document.getElementById('dsummary').innerHTML=`
+    <div class="scard"><div class="lbl">মোট মাল দিয়েছি</div><div class="val vb" style="font-size:17px">${fmt(totDr)}</div></div>
+    <div class="scard"><div class="lbl">মোট পেমেন্ট পেয়েছি</div><div class="val vg" style="font-size:17px">${fmt(totCr)}</div></div>
+    <div class="scard"><div class="lbl">এই মাসে মাল</div><div class="val vb" style="font-size:17px">${fmt(mDr)}</div></div>
+    <div class="scard"><div class="lbl">এই মাসে পেমেন্ট</div><div class="val vg" style="font-size:17px">${fmt(mCr)}</div></div>`;
+  document.getElementById('txlist').innerHTML=ptxs.length?ptxs.map(t=>`
+    <div class="tx-item">
+      <div style="flex:1">
+        <div class="tx-type ${t.type==='dr'?'tdr':'tcr'}">${t.type==='dr'?'📦 মাল দেওয়া':'💵 পেমেন্ট নেওয়া'}</div>
+        <div class="tx-meta">${t.date||''}${t.memo?' · '+t.memo:''}${t.note?' · '+t.note:''}</div>
+      </div>
+      <div style="display:flex;align-items:center">
+        <div class="tx-amt ${t.type==='dr'?'vb':'vg'}">${t.type==='dr'?'+':'-'}${fmt(t.amt)}</div>
+        <button class="dbtn" onclick="delTx(${t.id})">🗑</button>
+      </div>
+    </div>`).join(''):`<div class="empty">কোনো লেনদেন নেই</div>`;
+}
+
+function initTx(){
+  document.getElementById('tx-date').value=today();
+  document.getElementById('tx-amt').value='';
+  document.getElementById('tx-memo').value='';
+  document.getElementById('tx-note').value='';
+  setType('dr');
+  setTimeout(()=>document.getElementById('tx-amt').focus(),300);
+}
+
+function setType(t){
+  curType=t;
+  document.getElementById('btn-dr').className='tbtn'+(t==='dr'?' on-dr':'');
+  document.getElementById('btn-cr').className='tbtn'+(t==='cr'?' on-cr':'');
+}
+
+function saveTx(){
+  const amt=parseFloat(document.getElementById('tx-amt').value);
+  if(!amt||amt<=0){alert('টাকার পরিমাণ দিন');return}
+  const memo=document.getElementById('tx-memo').value.trim();
+  const date=document.getElementById('tx-date').value||today();
+  const note=document.getElementById('tx-note').value.trim();
+  txs.push({id:Date.now(),pid:curPid,type:curType,amt,memo,date,note});
+  save();
+  alert(`✅ সেভ হয়েছে!\n${curType==='dr'?'মাল':'পেমেন্ট'}: ${fmt(amt)}\nবর্তমান বাকি: ${fmt(getBaki(curPid))}`);
+  go('detail');
+}
+
+function delTx(tid){
+  if(!confirm('এই লেনদেন মুছবেন?'))return;
+  txs=txs.filter(t=>t.id!==tid);save();renderDetail(curPid);
+}
+
+function saveParty(){
+  const name=document.getElementById('np-name').value.trim();
+  if(!name){alert('পার্টির নাম দিন');return}
+  const phone=document.getElementById('np-phone').value.trim();
+  const addr=document.getElementById('np-addr').value.trim();
+  const opening=parseFloat(document.getElementById('np-opening').value)||0;
+  parties.push({id:Date.now(),name,phone,addr,opening});
+  save();
+  ['np-name','np-phone','np-addr','np-opening'].forEach(id=>document.getElementById(id).value='');
+  alert(`✅ "${name}" যোগ হয়েছে`);
+  go('home');
+}
+
+function initEditParty(){
+  const p=parties.find(x=>x.id===curPid);if(!p)return;
+  document.getElementById('ep-name').value=p.name;
+  document.getElementById('ep-phone').value=p.phone||'';
+  document.getElementById('ep-addr').value=p.addr||'';
+  document.getElementById('ep-opening').value=p.opening||0;
+  document.getElementById('del-party-btn').onclick=()=>deleteParty(curPid);
+}
+
+function updateParty(){
+  const name=document.getElementById('ep-name').value.trim();
+  if(!name){alert('পার্টির নাম দিন');return}
+  const p=parties.find(x=>x.id===curPid);
+  p.name=name;
+  p.phone=document.getElementById('ep-phone').value.trim();
+  p.addr=document.getElementById('ep-addr').value.trim();
+  p.opening=parseFloat(document.getElementById('ep-opening').value)||0;
+  save();
+  alert('✅ আপডেট হয়েছে');
+  go('detail');
+}
+
+function deleteParty(pid){
+  const p=parties.find(x=>x.id===pid);
+  if(!confirm(`⚠️ "${p.name}" ও সব লেনদেন চিরতরে মুছবেন?\n\nনিশ্চিত হলে OK চাপুন।`))return;
+  parties=parties.filter(x=>x.id!==pid);
+  txs=txs.filter(t=>t.pid!==pid);
+  save();go('home');
+}
+
+// ব্যাকআপ ডাউনলোড
+function downloadBackup(){
+  const data=JSON.stringify({parties,txs,date:new Date().toISOString()},null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='hisab_backup_'+today()+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  alert('✅ ব্যাকআপ ডাউনলোড হয়েছে!\n\nএখন এই ফাইলটা Google Drive এ আপলোড করে রাখুন।');
+}
+
+// রিস্টোর
+function restoreBackup(){
+  const file=document.getElementById('restore-file').files[0];
+  if(!file){alert('ফাইল বেছে নিন');return}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(data.parties&&data.txs){
+        if(!confirm('সব বর্তমান ডেটা মুছে রিস্টোর করবেন?'))return;
+        parties=data.parties;txs=data.txs;save();
+        alert('✅ রিস্টোর সফল হয়েছে!');
+        go('home');
+      }else{alert('ফাইলটা সঠিক নয়')}
+    }catch(e){alert('ফাইল পড়তে সমস্যা হয়েছে')}
+  };
+  reader.readAsText(file);
+}
+
+load();renderHome();
+</script>
+</body>
+</html>
