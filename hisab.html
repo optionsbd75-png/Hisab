@@ -10,6 +10,23 @@
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:15px;min-height:100vh}
 .page{display:none;padding:16px;max-width:480px;margin:0 auto;padding-bottom:40px}
 .page.on{display:block}
+
+/* লক স্ক্রিন */
+#lock-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px}
+.lock-icon{font-size:60px;margin-bottom:20px}
+.lock-title{font-size:22px;font-weight:700;margin-bottom:8px;color:var(--text)}
+.lock-sub{font-size:14px;color:var(--text2);margin-bottom:30px;text-align:center}
+.pin-dots{display:flex;gap:16px;margin-bottom:30px}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--text2);background:transparent;transition:all .15s}
+.pin-dot.filled{background:var(--blue);border-color:var(--blue)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:280px}
+.pin-btn{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;font-size:22px;font-weight:600;color:var(--text);cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+.pin-btn:active{background:var(--bg3);transform:scale(.95)}
+.pin-btn.del{font-size:18px;color:var(--text2)}
+.pin-btn.empty{background:transparent;border:none;cursor:default}
+.lock-error{color:var(--red);font-size:13px;margin-top:12px;height:20px;text-align:center}
+.lock-hint{color:var(--text2);font-size:12px;margin-top:16px;text-align:center;line-height:1.6}
+
 .top-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px}
 .top-bar h1{font-size:17px;font-weight:600;flex:1}
 .sub{font-size:11px;color:var(--text2)}
@@ -64,14 +81,41 @@ input:focus{border-color:var(--blue)}
 .info-lbl{color:var(--text2);min-width:65px}
 .info-val{color:var(--text);font-weight:500}
 .btn-danger{background:transparent;border:1px solid rgba(231,76,60,.5);color:var(--red);padding:12px;border-radius:10px;font-size:14px;cursor:pointer;width:100%;font-family:inherit;margin-top:8px}
-/* ব্যাকআপ বাটন */
-.backup-btn{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px;font-size:14px;cursor:pointer;width:100%;font-family:inherit;margin-top:8px;text-align:center;display:block}
 </style>
 </head>
 <body>
 
+<!-- লক স্ক্রিন -->
+<div id="lock-screen">
+  <div class="lock-icon">🔐</div>
+  <div class="lock-title">পাইকারি হিসাব</div>
+  <div class="lock-sub" id="lock-sub">পিন দিয়ে প্রবেশ করুন</div>
+  <div class="pin-dots">
+    <div class="pin-dot" id="d0"></div>
+    <div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div>
+    <div class="pin-dot" id="d3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-btn" onclick="pinPress('1')">1</button>
+    <button class="pin-btn" onclick="pinPress('2')">2</button>
+    <button class="pin-btn" onclick="pinPress('3')">3</button>
+    <button class="pin-btn" onclick="pinPress('4')">4</button>
+    <button class="pin-btn" onclick="pinPress('5')">5</button>
+    <button class="pin-btn" onclick="pinPress('6')">6</button>
+    <button class="pin-btn" onclick="pinPress('7')">7</button>
+    <button class="pin-btn" onclick="pinPress('8')">8</button>
+    <button class="pin-btn" onclick="pinPress('9')">9</button>
+    <button class="pin-btn empty"></button>
+    <button class="pin-btn" onclick="pinPress('0')">0</button>
+    <button class="pin-btn del" onclick="pinDel()">⌫</button>
+  </div>
+  <div class="lock-error" id="lock-error"></div>
+  <div class="lock-hint" id="lock-hint"></div>
+</div>
+
 <!-- হোম -->
-<div id="pg-home" class="page on">
+<div id="pg-home" class="page">
   <div class="top-bar">
     <div><h1>পাইকারি হিসাব</h1><div class="sub" id="home-date"></div></div>
     <button class="gbtn" onclick="go('add-party')">+ নতুন পার্টি</button>
@@ -93,7 +137,7 @@ input:focus{border-color:var(--blue)}
     <div class="baki-lbl">মোট বাকি</div>
     <div class="baki-big" id="baki-big"></div>
   </div>
-  <div class="form-card" id="party-info-card">
+  <div class="form-card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div class="stitle" style="margin:0">পার্টির তথ্য</div>
       <button class="gbtn" onclick="go('edit-party')" style="font-size:12px;padding:6px 10px">✏️ এডিট</button>
@@ -149,7 +193,7 @@ input:focus{border-color:var(--blue)}
   </div>
 </div>
 
-<!-- পার্টি এডিট — এখানে মুছুন বাটনও আছে -->
+<!-- পার্টি এডিট -->
 <div id="pg-edit-party" class="page">
   <div class="top-bar">
     <button class="gbtn" onclick="go('detail')">← ফিরুন</button>
@@ -157,23 +201,22 @@ input:focus{border-color:var(--blue)}
   </div>
   <div class="form-card">
     <label>পার্টির নাম *</label>
-    <input type="text" id="ep-name" placeholder="পার্টির নাম">
+    <input type="text" id="ep-name">
     <div class="r2">
-      <div><label>ফোন</label><input type="tel" id="ep-phone" placeholder="ফোন নম্বর"></div>
-      <div><label>ঠিকানা</label><input type="text" id="ep-addr" placeholder="ঠিকানা"></div>
+      <div><label>ফোন</label><input type="tel" id="ep-phone"></div>
+      <div><label>ঠিকানা</label><input type="text" id="ep-addr"></div>
     </div>
     <label>প্রারম্ভিক বাকি</label>
-    <input type="number" id="ep-opening" placeholder="০" inputmode="numeric">
+    <input type="number" id="ep-opening" inputmode="numeric">
     <button class="btn btn-pri" onclick="updateParty()">✓ আপডেট করুন</button>
-    <!-- মুছুন বাটন এডিট পেজেই -->
     <div style="margin-top:20px;padding-top:16px;border-top:1px dashed rgba(231,76,60,.3)">
-      <div style="font-size:12px;color:var(--red);margin-bottom:8px;opacity:.7">⚠️ সতর্ক — একবার মুছলে ফেরত আসবে না</div>
+      <div style="font-size:12px;color:var(--red);margin-bottom:8px;opacity:.7">⚠️ একবার মুছলে ফেরত আসবে না</div>
       <button class="btn-danger" id="del-party-btn">🗑️ এই পার্টি ও সব লেনদেন মুছুন</button>
     </div>
   </div>
 </div>
 
-<!-- সেটিংস / ব্যাকআপ -->
+<!-- সেটিংস -->
 <div id="pg-settings" class="page">
   <div class="top-bar">
     <button class="gbtn" onclick="go('home')">← ফিরুন</button>
@@ -183,23 +226,89 @@ input:focus{border-color:var(--blue)}
     <div class="stitle">ব্যাকআপ</div>
     <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">ডেটা ডাউনলোড করুন → Google Drive এ আপলোড করুন → নিরাপদ থাকুন।</p>
     <button class="btn btn-pri" onclick="downloadBackup()">⬇️ ব্যাকআপ ডাউনলোড করুন</button>
-    <div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text2);line-height:1.7">
-      <strong style="color:var(--text)">📱 হোম স্ক্রিনে যোগ করুন:</strong><br>
-      Chrome মেনু (⋮) → <strong style="color:var(--text)">Share</strong> → <strong style="color:var(--text)">Add to Home Screen</strong> → Add
-    </div>
   </div>
   <div class="form-card">
     <div class="stitle">ব্যাকআপ থেকে রিস্টোর</div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">আগের ব্যাকআপ ফাইল বেছে নিন:</p>
-    <input type="file" id="restore-file" accept=".json" style="font-size:13px">
-    <button class="btn btn-pri" onclick="restoreBackup()" style="margin-top:10px">↑ রিস্টোর করুন</button>
+    <input type="file" id="restore-file" accept=".json" style="font-size:13px;margin-bottom:10px">
+    <button class="btn btn-pri" onclick="restoreBackup()">↑ রিস্টোর করুন</button>
+  </div>
+  <div class="form-card">
+    <div class="stitle">পিন পরিবর্তন</div>
+    <label>নতুন ৪ সংখ্যার পিন</label>
+    <input type="password" id="new-pin" placeholder="****" maxlength="4" inputmode="numeric">
+    <label>পিন নিশ্চিত করুন</label>
+    <input type="password" id="confirm-pin" placeholder="****" maxlength="4" inputmode="numeric">
+    <button class="btn btn-pri" onclick="changePin()">🔐 পিন পরিবর্তন করুন</button>
   </div>
 </div>
 
 <script>
 const MONTHS=['জানু','ফেব্রু','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টে','অক্টো','নভে','ডিসে'];
 let parties=[],txs=[],curPid=null,curType='dr',selMonth='all';
+let pinInput='';
+const DEFAULT_PIN='1234';
 
+function getPin(){return localStorage.getItem('hisab_pin')||DEFAULT_PIN}
+
+// ══════════════════════════════
+// লক স্ক্রিন
+// ══════════════════════════════
+function initLock(){
+  const pin=getPin();
+  if(pin===DEFAULT_PIN){
+    document.getElementById('lock-hint').textContent='ডিফল্ট পিন: 1234 | সেটিংস থেকে পরিবর্তন করুন';
+  }
+  document.getElementById('lock-sub').textContent='৪ সংখ্যার পিন দিন';
+}
+
+function pinPress(n){
+  if(pinInput.length>=4)return;
+  pinInput+=n;
+  updateDots();
+  if(pinInput.length===4){
+    setTimeout(checkPin,100);
+  }
+}
+
+function pinDel(){
+  pinInput=pinInput.slice(0,-1);
+  updateDots();
+  document.getElementById('lock-error').textContent='';
+}
+
+function updateDots(){
+  for(let i=0;i<4;i++){
+    document.getElementById('d'+i).className='pin-dot'+(i<pinInput.length?' filled':'');
+  }
+}
+
+function checkPin(){
+  if(pinInput===getPin()){
+    document.getElementById('lock-screen').style.display='none';
+    load();
+    go('home');
+  } else {
+    document.getElementById('lock-error').textContent='❌ ভুল পিন! আবার চেষ্টা করুন।';
+    pinInput='';
+    updateDots();
+    setTimeout(()=>{document.getElementById('lock-error').textContent=''},2000);
+  }
+}
+
+function changePin(){
+  const np=document.getElementById('new-pin').value;
+  const cp=document.getElementById('confirm-pin').value;
+  if(np.length!==4||isNaN(np)){alert('৪ সংখ্যার পিন দিন');return}
+  if(np!==cp){alert('পিন মিলছে না');return}
+  localStorage.setItem('hisab_pin',np);
+  document.getElementById('new-pin').value='';
+  document.getElementById('confirm-pin').value='';
+  alert('✅ পিন পরিবর্তন হয়েছে!\n\nনতুন পিন: '+np+'\nএটা মনে রাখুন।');
+}
+
+// ══════════════════════════════
+// মূল অ্যাপ
+// ══════════════════════════════
 function load(){
   try{parties=JSON.parse(localStorage.getItem('hisab_p')||'[]')}catch(e){parties=[]}
   try{txs=JSON.parse(localStorage.getItem('hisab_t')||'[]')}catch(e){txs=[]}
@@ -247,7 +356,7 @@ function renderHome(){
   document.getElementById('mrow').innerHTML=
     `<button class="mchip${selMonth==='all'?' on':''}" onclick="selMonth='all';renderHome()">সব</button>`+
     months.map(m=>{const[y,mo]=m.split('-');return`<button class="mchip${selMonth===m?' on':''}" onclick="selMonth='${m}';renderHome()">${MONTHS[parseInt(mo)-1]} ${y}</button>`}).join('')+
-    `<button class="mchip" onclick="go('settings')" style="margin-left:8px">⚙️ সেটিংস</button>`;
+    `<button class="mchip" onclick="go('settings')" style="margin-left:4px">⚙️</button>`;
   document.getElementById('plist').innerHTML=filtered.length?filtered.map(p=>{
     const baki=getBaki(p.id);
     const ptxs=selMonth==='all'?txs.filter(t=>t.pid===p.id):txs.filter(t=>t.pid===p.id&&t.date&&t.date.slice(0,7)===selMonth);
@@ -306,6 +415,7 @@ function renderDetail(pid){
         <button class="dbtn" onclick="delTx(${t.id})">🗑</button>
       </div>
     </div>`).join(''):`<div class="empty">কোনো লেনদেন নেই</div>`;
+  document.getElementById('del-party-btn').onclick=()=>deleteParty(pid);
 }
 
 function initTx(){
@@ -366,37 +476,30 @@ function updateParty(){
   const name=document.getElementById('ep-name').value.trim();
   if(!name){alert('পার্টির নাম দিন');return}
   const p=parties.find(x=>x.id===curPid);
-  p.name=name;
-  p.phone=document.getElementById('ep-phone').value.trim();
+  p.name=name; p.phone=document.getElementById('ep-phone').value.trim();
   p.addr=document.getElementById('ep-addr').value.trim();
   p.opening=parseFloat(document.getElementById('ep-opening').value)||0;
-  save();
-  alert('✅ আপডেট হয়েছে');
-  go('detail');
+  save(); alert('✅ আপডেট হয়েছে'); go('detail');
 }
 
 function deleteParty(pid){
   const p=parties.find(x=>x.id===pid);
-  if(!confirm(`⚠️ "${p.name}" ও সব লেনদেন চিরতরে মুছবেন?\n\nনিশ্চিত হলে OK চাপুন।`))return;
+  if(!confirm(`⚠️ "${p.name}" ও সব লেনদেন মুছবেন?`))return;
   parties=parties.filter(x=>x.id!==pid);
   txs=txs.filter(t=>t.pid!==pid);
-  save();go('home');
+  save(); go('home');
 }
 
-// ব্যাকআপ ডাউনলোড
 function downloadBackup(){
   const data=JSON.stringify({parties,txs,date:new Date().toISOString()},null,2);
   const blob=new Blob([data],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;
-  a.download='hisab_backup_'+today()+'.json';
-  a.click();
+  a.href=url; a.download='hisab_backup_'+today()+'.json'; a.click();
   URL.revokeObjectURL(url);
-  alert('✅ ব্যাকআপ ডাউনলোড হয়েছে!\n\nএখন এই ফাইলটা Google Drive এ আপলোড করে রাখুন।');
+  alert('✅ ব্যাকআপ ডাউনলোড হয়েছে!\nGoogle Drive এ আপলোড করে রাখুন।');
 }
 
-// রিস্টোর
 function restoreBackup(){
   const file=document.getElementById('restore-file').files[0];
   if(!file){alert('ফাইল বেছে নিন');return}
@@ -406,16 +509,15 @@ function restoreBackup(){
       const data=JSON.parse(e.target.result);
       if(data.parties&&data.txs){
         if(!confirm('সব বর্তমান ডেটা মুছে রিস্টোর করবেন?'))return;
-        parties=data.parties;txs=data.txs;save();
-        alert('✅ রিস্টোর সফল হয়েছে!');
-        go('home');
+        parties=data.parties; txs=data.txs; save();
+        alert('✅ রিস্টোর সফল!'); go('home');
       }else{alert('ফাইলটা সঠিক নয়')}
-    }catch(e){alert('ফাইল পড়তে সমস্যা হয়েছে')}
+    }catch(e){alert('ফাইল পড়তে সমস্যা')}
   };
   reader.readAsText(file);
 }
 
-load();renderHome();
+initLock();
 </script>
 </body>
 </html>
