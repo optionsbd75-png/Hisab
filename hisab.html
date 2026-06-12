@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f0f0f">
 <title>পাইকারি হিসাব</title>
 <style>
 :root{--bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#242424;--border:#2e2e2e;--text:#f0f0f0;--text2:#888;--green:#2ecc71;--red:#e74c3c;--blue:#3498db;--r:12px}
@@ -10,23 +13,20 @@
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:15px;min-height:100vh}
 .page{display:none;padding:16px;max-width:480px;margin:0 auto;padding-bottom:40px}
 .page.on{display:block}
-
-/* লক স্ক্রিন */
 #lock-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px}
 .lock-icon{font-size:60px;margin-bottom:20px}
-.lock-title{font-size:22px;font-weight:700;margin-bottom:8px;color:var(--text)}
+.lock-title{font-size:22px;font-weight:700;margin-bottom:8px}
 .lock-sub{font-size:14px;color:var(--text2);margin-bottom:30px;text-align:center}
 .pin-dots{display:flex;gap:16px;margin-bottom:30px}
 .pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--text2);background:transparent;transition:all .15s}
 .pin-dot.filled{background:var(--blue);border-color:var(--blue)}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:280px}
-.pin-btn{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;font-size:22px;font-weight:600;color:var(--text);cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+.pin-btn{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px;font-size:22px;font-weight:600;color:var(--text);cursor:pointer;text-align:center}
 .pin-btn:active{background:var(--bg3);transform:scale(.95)}
 .pin-btn.del{font-size:18px;color:var(--text2)}
 .pin-btn.empty{background:transparent;border:none;cursor:default}
 .lock-error{color:var(--red);font-size:13px;margin-top:12px;height:20px;text-align:center}
 .lock-hint{color:var(--text2);font-size:12px;margin-top:16px;text-align:center;line-height:1.6}
-
 .top-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px}
 .top-bar h1{font-size:17px;font-weight:600;flex:1}
 .sub{font-size:11px;color:var(--text2)}
@@ -49,7 +49,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;fo
 .form-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px}
 label{font-size:13px;color:var(--text2);display:block;margin-bottom:5px;margin-top:12px}
 label:first-of-type{margin-top:0}
-input,select{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;outline:none}
+input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-size:15px;font-family:inherit;outline:none}
 input:focus{border-color:var(--blue)}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer;margin-top:12px;font-family:inherit}
@@ -81,15 +81,18 @@ input:focus{border-color:var(--blue)}
 .info-lbl{color:var(--text2);min-width:65px}
 .info-val{color:var(--text);font-weight:500}
 .btn-danger{background:transparent;border:1px solid rgba(231,76,60,.5);color:var(--red);padding:12px;border-radius:10px;font-size:14px;cursor:pointer;width:100%;font-family:inherit;margin-top:8px}
+.offline-bar{background:#e67e22;color:#fff;text-align:center;padding:6px;font-size:12px;display:none}
 </style>
 </head>
 <body>
+
+<div class="offline-bar" id="offline-bar">⚠️ অফলাইন মোড — সব ডেটা সেভ থাকবে</div>
 
 <!-- লক স্ক্রিন -->
 <div id="lock-screen">
   <div class="lock-icon">🔐</div>
   <div class="lock-title">পাইকারি হিসাব</div>
-  <div class="lock-sub" id="lock-sub">পিন দিয়ে প্রবেশ করুন</div>
+  <div class="lock-sub">৪ সংখ্যার পিন দিন</div>
   <div class="pin-dots">
     <div class="pin-dot" id="d0"></div>
     <div class="pin-dot" id="d1"></div>
@@ -111,7 +114,7 @@ input:focus{border-color:var(--blue)}
     <button class="pin-btn del" onclick="pinDel()">⌫</button>
   </div>
   <div class="lock-error" id="lock-error"></div>
-  <div class="lock-hint" id="lock-hint"></div>
+  <div class="lock-hint">ডিফল্ট পিন: 1234 | সেটিংস থেকে বদলান</div>
 </div>
 
 <!-- হোম -->
@@ -224,11 +227,11 @@ input:focus{border-color:var(--blue)}
   </div>
   <div class="form-card">
     <div class="stitle">ব্যাকআপ</div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">ডেটা ডাউনলোড করুন → Google Drive এ আপলোড করুন → নিরাপদ থাকুন।</p>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">মাসে একবার ব্যাকআপ নিন → Google Drive এ রাখুন।</p>
     <button class="btn btn-pri" onclick="downloadBackup()">⬇️ ব্যাকআপ ডাউনলোড করুন</button>
   </div>
   <div class="form-card">
-    <div class="stitle">ব্যাকআপ থেকে রিস্টোর</div>
+    <div class="stitle">রিস্টোর</div>
     <input type="file" id="restore-file" accept=".json" style="font-size:13px;margin-bottom:10px">
     <button class="btn btn-pri" onclick="restoreBackup()">↑ রিস্টোর করুন</button>
   </div>
@@ -243,58 +246,68 @@ input:focus{border-color:var(--blue)}
 </div>
 
 <script>
+// ══════════════════════════════
+// Service Worker — অফলাইন সাপোর্ট
+// ══════════════════════════════
+if('serviceWorker' in navigator){
+  const swCode=`
+    const CACHE='hisab-v1';
+    self.addEventListener('install',e=>{
+      e.waitUntil(caches.open(CACHE).then(c=>c.addAll([self.location.pathname])));
+      self.skipWaiting();
+    });
+    self.addEventListener('activate',e=>{
+      e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+      self.clients.claim();
+    });
+    self.addEventListener('fetch',e=>{
+      e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{
+        const rc=res.clone();
+        caches.open(CACHE).then(c=>c.put(e.request,rc));
+        return res;
+      }).catch(()=>caches.match(e.request))));
+    });
+  `;
+  const blob=new Blob([swCode],{type:'application/javascript'});
+  const swUrl=URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+
+// অনলাইন/অফলাইন ডিটেক্ট
+window.addEventListener('offline',()=>{document.getElementById('offline-bar').style.display='block'});
+window.addEventListener('online',()=>{document.getElementById('offline-bar').style.display='none'});
+
 const MONTHS=['জানু','ফেব্রু','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টে','অক্টো','নভে','ডিসে'];
 let parties=[],txs=[],curPid=null,curType='dr',selMonth='all';
 let pinInput='';
-const DEFAULT_PIN='1234';
 
-function getPin(){return localStorage.getItem('hisab_pin')||DEFAULT_PIN}
-
-// ══════════════════════════════
-// লক স্ক্রিন
-// ══════════════════════════════
-function initLock(){
-  const pin=getPin();
-  if(pin===DEFAULT_PIN){
-    document.getElementById('lock-hint').textContent='ডিফল্ট পিন: 1234 | সেটিংস থেকে পরিবর্তন করুন';
-  }
-  document.getElementById('lock-sub').textContent='৪ সংখ্যার পিন দিন';
-}
+function getPin(){return localStorage.getItem('hisab_pin')||'1234'}
 
 function pinPress(n){
   if(pinInput.length>=4)return;
   pinInput+=n;
   updateDots();
-  if(pinInput.length===4){
-    setTimeout(checkPin,100);
-  }
+  if(pinInput.length===4)setTimeout(checkPin,100);
 }
-
 function pinDel(){
   pinInput=pinInput.slice(0,-1);
   updateDots();
   document.getElementById('lock-error').textContent='';
 }
-
 function updateDots(){
-  for(let i=0;i<4;i++){
+  for(let i=0;i<4;i++)
     document.getElementById('d'+i).className='pin-dot'+(i<pinInput.length?' filled':'');
-  }
 }
-
 function checkPin(){
   if(pinInput===getPin()){
     document.getElementById('lock-screen').style.display='none';
-    load();
-    go('home');
+    load(); go('home');
   } else {
     document.getElementById('lock-error').textContent='❌ ভুল পিন! আবার চেষ্টা করুন।';
-    pinInput='';
-    updateDots();
+    pinInput=''; updateDots();
     setTimeout(()=>{document.getElementById('lock-error').textContent=''},2000);
   }
 }
-
 function changePin(){
   const np=document.getElementById('new-pin').value;
   const cp=document.getElementById('confirm-pin').value;
@@ -303,12 +316,9 @@ function changePin(){
   localStorage.setItem('hisab_pin',np);
   document.getElementById('new-pin').value='';
   document.getElementById('confirm-pin').value='';
-  alert('✅ পিন পরিবর্তন হয়েছে!\n\nনতুন পিন: '+np+'\nএটা মনে রাখুন।');
+  alert('✅ পিন পরিবর্তন হয়েছে! নতুন পিন: '+np);
 }
 
-// ══════════════════════════════
-// মূল অ্যাপ
-// ══════════════════════════════
 function load(){
   try{parties=JSON.parse(localStorage.getItem('hisab_p')||'[]')}catch(e){parties=[]}
   try{txs=JSON.parse(localStorage.getItem('hisab_t')||'[]')}catch(e){txs=[]}
@@ -426,13 +436,11 @@ function initTx(){
   setType('dr');
   setTimeout(()=>document.getElementById('tx-amt').focus(),300);
 }
-
 function setType(t){
   curType=t;
   document.getElementById('btn-dr').className='tbtn'+(t==='dr'?' on-dr':'');
   document.getElementById('btn-cr').className='tbtn'+(t==='cr'?' on-cr':'');
 }
-
 function saveTx(){
   const amt=parseFloat(document.getElementById('tx-amt').value);
   if(!amt||amt<=0){alert('টাকার পরিমাণ দিন');return}
@@ -444,12 +452,10 @@ function saveTx(){
   alert(`✅ সেভ হয়েছে!\n${curType==='dr'?'মাল':'পেমেন্ট'}: ${fmt(amt)}\nবর্তমান বাকি: ${fmt(getBaki(curPid))}`);
   go('detail');
 }
-
 function delTx(tid){
   if(!confirm('এই লেনদেন মুছবেন?'))return;
   txs=txs.filter(t=>t.id!==tid);save();renderDetail(curPid);
 }
-
 function saveParty(){
   const name=document.getElementById('np-name').value.trim();
   if(!name){alert('পার্টির নাম দিন');return}
@@ -462,7 +468,6 @@ function saveParty(){
   alert(`✅ "${name}" যোগ হয়েছে`);
   go('home');
 }
-
 function initEditParty(){
   const p=parties.find(x=>x.id===curPid);if(!p)return;
   document.getElementById('ep-name').value=p.name;
@@ -471,7 +476,6 @@ function initEditParty(){
   document.getElementById('ep-opening').value=p.opening||0;
   document.getElementById('del-party-btn').onclick=()=>deleteParty(curPid);
 }
-
 function updateParty(){
   const name=document.getElementById('ep-name').value.trim();
   if(!name){alert('পার্টির নাম দিন');return}
@@ -481,7 +485,6 @@ function updateParty(){
   p.opening=parseFloat(document.getElementById('ep-opening').value)||0;
   save(); alert('✅ আপডেট হয়েছে'); go('detail');
 }
-
 function deleteParty(pid){
   const p=parties.find(x=>x.id===pid);
   if(!confirm(`⚠️ "${p.name}" ও সব লেনদেন মুছবেন?`))return;
@@ -489,7 +492,6 @@ function deleteParty(pid){
   txs=txs.filter(t=>t.pid!==pid);
   save(); go('home');
 }
-
 function downloadBackup(){
   const data=JSON.stringify({parties,txs,date:new Date().toISOString()},null,2);
   const blob=new Blob([data],{type:'application/json'});
@@ -499,7 +501,6 @@ function downloadBackup(){
   URL.revokeObjectURL(url);
   alert('✅ ব্যাকআপ ডাউনলোড হয়েছে!\nGoogle Drive এ আপলোড করে রাখুন।');
 }
-
 function restoreBackup(){
   const file=document.getElementById('restore-file').files[0];
   if(!file){alert('ফাইল বেছে নিন');return}
@@ -511,13 +512,11 @@ function restoreBackup(){
         if(!confirm('সব বর্তমান ডেটা মুছে রিস্টোর করবেন?'))return;
         parties=data.parties; txs=data.txs; save();
         alert('✅ রিস্টোর সফল!'); go('home');
-      }else{alert('ফাইলটা সঠিক নয়')}
+      }else alert('ফাইলটা সঠিক নয়');
     }catch(e){alert('ফাইল পড়তে সমস্যা')}
   };
   reader.readAsText(file);
 }
-
-initLock();
 </script>
 </body>
 </html>
