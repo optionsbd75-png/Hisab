@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0f0f0f">
+<link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIuCmquCmvuCmh+CmleCmvuCmsOCmvyDgprngpr/gprjgpr7gpqwiLAogICJzaG9ydF9uYW1lIjogIuCmueCmv+CmuOCmvuCmrCIsCiAgInN0YXJ0X3VybCI6ICIuL2hpc2FiLmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwZjBmMGYiLAogICJ0aGVtZV9jb2xvciI6ICIjMGYwZjBmIiwKICAiaWNvbnMiOiBbXQp9Cg==">
 <title>পাইকারি হিসাব</title>
 <style>
 :root{--bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#242424;--border:#2e2e2e;--text:#f0f0f0;--text2:#888;--green:#2ecc71;--red:#e74c3c;--blue:#3498db;--r:12px}
@@ -248,29 +249,14 @@ input:focus{border-color:var(--blue)}
 <script>
 // ══════════════════════════════
 // Service Worker — অফলাইন সাপোর্ট
+// (আলাদা sw.js ফাইল থেকে রেজিস্টার — blob URL নয়,
+//  কারণ blob URL পেজ রিলোড/অ্যাপ রিওপেনে হারিয়ে যায়
+//  এবং iOS-এ প্রায়ই সাইলেন্টলি ফেইল করে)
 // ══════════════════════════════
 if('serviceWorker' in navigator){
-  const swCode=`
-    const CACHE='hisab-v1';
-    self.addEventListener('install',e=>{
-      e.waitUntil(caches.open(CACHE).then(c=>c.addAll([self.location.pathname])));
-      self.skipWaiting();
-    });
-    self.addEventListener('activate',e=>{
-      e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
-      self.clients.claim();
-    });
-    self.addEventListener('fetch',e=>{
-      e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{
-        const rc=res.clone();
-        caches.open(CACHE).then(c=>c.put(e.request,rc));
-        return res;
-      }).catch(()=>caches.match(e.request))));
-    });
-  `;
-  const blob=new Blob([swCode],{type:'application/javascript'});
-  const swUrl=URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl).catch(()=>{});
+  navigator.serviceWorker.register('./sw.js').catch(err=>{
+    console.error('Service Worker registration failed:', err);
+  });
 }
 
 // অনলাইন/অফলাইন ডিটেক্ট
