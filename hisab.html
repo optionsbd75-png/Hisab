@@ -343,11 +343,11 @@ input:focus,select:focus{border-color:var(--blue)}
     <input type="password" id="confirm-pin" placeholder="****" maxlength="4" inputmode="numeric">
     <button class="btn btn-pri" onclick="changePin()">🔐 পিন পরিবর্তন করুন</button>
   </div>
-  <div class="sub" style="text-align:center">ভার্সন ৩.০</div>
+  <div class="sub" style="text-align:center">ভার্সন ৩.১</div>
 </div>
 <script>
 // ══════════════════════════════════════════
-// পাইকারি হিসাব — ভার্সন ৩.০
+// পাইকারি হিসাব — ভার্সন ৩.১
 // ══════════════════════════════════════════
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(err=>console.error('SW failed:',err));
@@ -898,6 +898,13 @@ function errText(e){
   return ({conflict:'Sheet-এ এই ফোনের চেয়ে নতুন ডেটা আছে (অন্য ডিভাইস থেকে?)',empty_guard:'ফোনে কোনো পার্টি নেই, তাই Sheet-এর ডেটা মুছতে দেওয়া হয়নি',
     bad_key:'গোপন কী মিলছে না',busy:'Sheet ব্যস্ত, একটু পরে আবার চেষ্টা হবে',network:'নেট নেই / সংযোগ হয়নি',bad_response:'Sheet-এর লিংক সঠিক নয়',server:'Sheet-এ সমস্যা'})[e]||('সমস্যা: '+e);
 }
+// ডেটার ছাপ (hash) — Sheet-এ যা আছে তা আমাদেরই পাঠানো কিনা চেনার জন্য
+function dataHash(P,T){
+  const n=a=>(a||[]).slice().sort((x,y)=>(x.id>y.id?1:x.id<y.id?-1:0)).map(o=>JSON.stringify(o)).join('\n');
+  const str=n(P)+'\n#\n'+n(T);let h=2166136261;
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)>>>0}
+  return h.toString(36)+':'+str.length;
+}
 async function doSync(force){
   const c=cloud();
   if(!loaded||!c||!c.url||!c.key||syncing)return false;
@@ -909,7 +916,15 @@ async function doSync(force){
   try{
     // সবসময় ফোনে সেভ করা ডেটা পাঠাই
     const P=JSON.parse(localStorage.getItem(LS_P)||'[]'),T=JSON.parse(localStorage.getItem(LS_T)||'[]');
-    const r=await callSheet({action:'sync',baseRev:c.rev==null?null:c.rev,force:!!force,parties:P,txs:T,device:navigator.userAgent.slice(0,80)});
+    const h=dataHash(P,T);
+    c.sent=[h].concat((c.sent||[]).filter(x=>x!==h)).slice(0,8);saveMeta();
+    const send=()=>callSheet({action:'sync',baseRev:c.rev==null?null:c.rev,force:!!force,parties:P,txs:T,device:navigator.userAgent.slice(0,80)});
+    let r=await send();
+    // উত্তর হারিয়ে গিয়েছিল? Sheet-এ যা আছে তা যদি এই ফোনেরই পাঠানো হয়, তাহলে এটা আসল conflict না
+    if(r&&!r.ok&&r.error==='conflict'&&!force&&c.rev!=null){
+      const rr=await callSheet({action:'restore'});
+      if(rr&&rr.ok&&validData(rr)&&(c.sent||[]).includes(dataHash(rr.parties,rr.txs))){c.rev=rr.rev;r=await send()}
+    }
     if(r&&r.ok){c.rev=r.rev;c.lastOk=new Date().toISOString();c.lastErr=null;c.blocked=false;meta.syncedChg=chgAt;ok=true}
     else{const e=(r&&r.error)||'server';c.lastErr=e;if(e==='conflict'||e==='empty_guard'||e==='bad_key')c.blocked=true}
   }catch(err){c.lastErr='network'}
@@ -944,10 +959,16 @@ function renderCloud(){
     ${c.blocked?'<button class="btn btn-sec" onclick="forcePush()">⬆️ ফোনের ডেটা দিয়ে Sheet হালনাগাদ করুন</button>':''}
     <button class="btn-danger" onclick="disconnectCloud()">সংযোগ বন্ধ করুন</button>`;
 }
+let connecting=false;
 async function connectCloud(){
+  if(connecting)return;
   const url=document.getElementById('cl-url').value.trim(),key=document.getElementById('cl-key').value.trim();
   if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)){alert('সঠিক Web App লিংক দিন (https://script.google.com/... দিয়ে শুরু)');return}
   if(key.length<8){alert('গোপন কী দিন');return}
+  connecting=true;
+  try{await connectCloudInner(url,key)}finally{connecting=false}
+}
+async function connectCloudInner(url,key){
   meta.cloud={url,key,rev:null};
   let r;
   try{r=await callSheet({action:'ping'})}catch(e){r={ok:false,error:'network'}}
@@ -998,6 +1019,13 @@ function disconnectCloud(){
   if(!confirm('অটো-ব্যাকআপ বন্ধ করবেন? (Sheet-এর ডেটা থেকে যাবে)'))return;
   delete meta.cloud;saveMeta();renderCloud();renderSyncLine();
 }
+// একই ফোনে অ্যাপ দুই ট্যাবে খোলা থাকলে — অন্য ট্যাবের পরিবর্তন সাথে সাথে নিয়ে নিই, যাতে পুরনো ডেটা দিয়ে ওভাররাইট না হয়
+window.addEventListener('storage',e=>{
+  if(!loaded||![LS_P,LS_T,LS_M].includes(e.key))return;
+  load();
+  const on=document.querySelector('.page.on');const pg=on?on.id.slice(3):'';
+  if(['home','detail','settings','report','trash'].includes(pg))go(pg);else renderSyncLine();
+});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncSoon(1000)});
 setInterval(()=>{if(loaded&&isDirty())doSync(false)},60000);
 </script>
