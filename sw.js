@@ -1,6 +1,6 @@
 // পাইকারি হিসাব — অফলাইন সাপোর্ট (ভার্সন ৩)
 // নতুন কোড আপলোড করলে CACHE নাম বদলাতে হবে
-const CACHE = 'hisab-v3';
+const CACHE = 'hisab-v4';
 const ASSETS = ['./hisab.html'];
 
 self.addEventListener('install', e => {
