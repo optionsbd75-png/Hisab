@@ -330,6 +330,7 @@ input:focus,select:focus{border-color:var(--blue)}
     <label style="margin-top:16px">ফাইল থেকে রিস্টোর</label>
     <input type="file" id="restore-file" accept=".json,application/json" style="font-size:13px">
     <button class="btn btn-sec" onclick="restoreBackup()">↑ ফাইল থেকে রিস্টোর</button>
+    <div id="undo-box"></div>
   </div>
   <div class="form-card">
     <div class="stitle">মুছে ফেলা জিনিস</div>
@@ -343,11 +344,11 @@ input:focus,select:focus{border-color:var(--blue)}
     <input type="password" id="confirm-pin" placeholder="****" maxlength="4" inputmode="numeric">
     <button class="btn btn-pri" onclick="changePin()">🔐 পিন পরিবর্তন করুন</button>
   </div>
-  <div class="sub" style="text-align:center">ভার্সন ৩.১</div>
+  <div class="sub" style="text-align:center">ভার্সন ৩.৪</div>
 </div>
 <script>
 // ══════════════════════════════════════════
-// পাইকারি হিসাব — ভার্সন ৩.১
+// পাইকারি হিসাব — ভার্সন ৩.৪
 // ══════════════════════════════════════════
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(err=>console.error('SW failed:',err));
@@ -482,7 +483,7 @@ function go(pg){
   if(pg==='home')renderHome();
   if(pg==='detail'&&curPid)renderDetail(curPid);
   if(pg==='edit-party')initEditParty();
-  if(pg==='settings')renderCloud();
+  if(pg==='settings'){renderCloud();renderUndo()}
   if(pg==='report')renderReport();
   if(pg==='trash')renderTrash();
 }
@@ -866,6 +867,7 @@ function restoreBackup(){
     try{data=JSON.parse(e.target.result)}catch(err){alert('ফাইল পড়তে সমস্যা');return}
     if(!validData(data)){alert('ফাইলটা সঠিক নয়');return}
     if(!confirm(`ফাইলে ${data.parties.length} পার্টি, ${data.txs.length} লেনদেন আছে।\nফোনের এখনকার সব ডেটা মুছে এটা বসাবেন?`))return;
+    saveUndo('ফাইল থেকে রিস্টোরের আগে');
     const oldP=parties,oldT=txs;
     parties=data.parties;txs=data.txs;normalize();
     if(!save()){parties=oldP;txs=oldT;return}
@@ -896,7 +898,7 @@ function syncSoon(ms){
 }
 function errText(e){
   return ({conflict:'Sheet-এ এই ফোনের চেয়ে নতুন ডেটা আছে (অন্য ডিভাইস থেকে?)',empty_guard:'ফোনে কোনো পার্টি নেই, তাই Sheet-এর ডেটা মুছতে দেওয়া হয়নি',
-    bad_key:'গোপন কী মিলছে না',busy:'Sheet ব্যস্ত, একটু পরে আবার চেষ্টা হবে',network:'নেট নেই / সংযোগ হয়নি',bad_response:'Sheet-এর লিংক সঠিক নয়',server:'Sheet-এ সমস্যা'})[e]||('সমস্যা: '+e);
+    bad_key:'গোপন কী মিলছে না',busy:'Sheet ব্যস্ত, একটু পরে আবার চেষ্টা হবে',verify_wait:'Sheet মিলিয়ে দেখা যায়নি (নেট দুর্বল?), একটু পরে নিজে আবার চেষ্টা হবে',network:'নেট নেই / সংযোগ হয়নি',bad_response:'Sheet-এর লিংক সঠিক নয়',server:'Sheet-এ সমস্যা'})[e]||('সমস্যা: '+e);
 }
 // ডেটার ছাপ (hash) — Sheet-এ যা আছে তা আমাদেরই পাঠানো কিনা চেনার জন্য
 function dataHash(P,T){
@@ -905,10 +907,33 @@ function dataHash(P,T){
   for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)>>>0}
   return h.toString(36)+':'+str.length;
 }
-async function doSync(force){
+// Sheet-এ যা আছে তা এই ফোনেরই পাঠানো কিনা: 'own' | 'other' | 'unknown' (নেট/Sheet সমস্যা — বোঝা যায়নি)
+async function checkSheetOwner(){
+  let rr;
+  try{rr=await callSheet({action:'restore'})}catch(e){return {s:'unknown'}}
+  if(!rr||!rr.ok||!validData(rr))return {s:'unknown'};
+  const sh=dataHash(rr.parties,rr.txs);
+  if((cloud().sent||[]).includes(sh))return {s:'own',rev:rr.rev,hash:sh};
+  return {s:'other'};
+}
+async function doSync(force,manual){
   const c=cloud();
   if(!loaded||!c||!c.url||!c.key||syncing)return false;
-  if(!force&&(!isDirty()||c.blocked))return true;
+  // ৩.২: "অন্য ডিভাইস" সতর্কতা আসলে নিজেরই হারানো উত্তর কিনা — ৫ মিনিট পরপর নিজে মিলিয়ে দেখে ঠিক করে নেয়
+  if(!force&&c.blocked&&c.lastErr==='conflict'){
+    if(Date.now()-(c.healAt||0)<300000)return true;
+    if(typeof navigator!=='undefined'&&navigator.onLine===false)return false;
+    c.healAt=Date.now();saveMeta();
+    syncing=true;
+    let v={s:'unknown'};
+    try{v=await checkSheetOwner()}catch(e){}
+    syncing=false;
+    if(v.s==='own'){c.rev=v.rev;c.blocked=false;c.lastErr=null;saveMeta()}
+    renderSyncLine();
+    if(document.getElementById('pg-settings').classList.contains('on'))renderCloud();
+    if(c.blocked)return true;
+  }
+  if(!force&&(c.blocked||(!manual&&!isDirty())))return !c.blocked;
   if(typeof navigator!=='undefined'&&navigator.onLine===false){renderSyncLine();return false}
   syncing=true;renderSyncLine();
   const chgAt=meta.chg||0;
@@ -917,13 +942,15 @@ async function doSync(force){
     // সবসময় ফোনে সেভ করা ডেটা পাঠাই
     const P=JSON.parse(localStorage.getItem(LS_P)||'[]'),T=JSON.parse(localStorage.getItem(LS_T)||'[]');
     const h=dataHash(P,T);
-    c.sent=[h].concat((c.sent||[]).filter(x=>x!==h)).slice(0,8);saveMeta();
+    c.sent=[h].concat((c.sent||[]).filter(x=>x!==h)).slice(0,300);saveMeta();
     const send=()=>callSheet({action:'sync',baseRev:c.rev==null?null:c.rev,force:!!force,parties:P,txs:T,device:navigator.userAgent.slice(0,80)});
     let r=await send();
     // উত্তর হারিয়ে গিয়েছিল? Sheet-এ যা আছে তা যদি এই ফোনেরই পাঠানো হয়, তাহলে এটা আসল conflict না
+    // ৩.২: মিলিয়ে দেখার সময় নেট/Sheet সমস্যা হলে "বন্ধ" না করে পরে আবার চেষ্টা; বন্ধ শুধু সত্যিকারের অন্য ডেটা পেলে
     if(r&&!r.ok&&r.error==='conflict'&&!force&&c.rev!=null){
-      const rr=await callSheet({action:'restore'});
-      if(rr&&rr.ok&&validData(rr)&&(c.sent||[]).includes(dataHash(rr.parties,rr.txs))){c.rev=rr.rev;r=await send()}
+      const v=await checkSheetOwner();
+      if(v.s==='own'){c.rev=v.rev;r=(v.hash===h)?{ok:true,rev:v.rev}:await send()}
+      else if(v.s==='unknown')r={ok:false,error:'verify_wait'};
     }
     if(r&&r.ok){c.rev=r.rev;c.lastOk=new Date().toISOString();c.lastErr=null;c.blocked=false;meta.syncedChg=chgAt;ok=true}
     else{const e=(r&&r.error)||'server';c.lastErr=e;if(e==='conflict'||e==='empty_guard'||e==='bad_key')c.blocked=true}
@@ -951,13 +978,14 @@ function renderCloud(){
       <button class="btn btn-pri" onclick="connectCloud()">☁️ সংযোগ করুন</button>`;
     return;
   }
-  const st=c.blocked?`<div class="warnbox" style="background:rgba(231,76,60,.12);color:var(--red)">⚠️ ${errText(c.lastErr)}। নিচ থেকে বেছে নিন কোন ডেটা ঠিক।</div>`:
+  const st=c.blocked?`<div class="warnbox" style="background:rgba(231,76,60,.12);color:var(--red)">⚠️ ${errText(c.lastErr)}। নিচ থেকে বেছে নিন কোন ডেটা ঠিক।</div><div id="cmp-box" class="note" style="margin-bottom:10px">🔍 ফোন আর Sheet মিলিয়ে দেখা হচ্ছে…</div>`:
     `<div class="note" style="margin-bottom:6px">অবস্থা: ${isDirty()?'⏳ ব্যাকআপ বাকি':'✅ সব ব্যাকআপ হয়েছে'}${c.lastOk?'<br>শেষ ব্যাকআপ: '+tShow(c.lastOk):''}${c.lastErr&&!c.blocked?'<br>শেষ সমস্যা: '+errText(c.lastErr):''}</div>`;
   box.innerHTML=st+`
     <button class="btn btn-pri" onclick="manualSync()">☁️ এখনই ব্যাকআপ</button>
     <button class="btn btn-sec" onclick="restoreFromSheet()">⬇️ Sheet থেকে সব ফেরত আনুন</button>
     ${c.blocked?'<button class="btn btn-sec" onclick="forcePush()">⬆️ ফোনের ডেটা দিয়ে Sheet হালনাগাদ করুন</button>':''}
     <button class="btn-danger" onclick="disconnectCloud()">সংযোগ বন্ধ করুন</button>`;
+  if(c.blocked&&c.lastErr==='conflict')loadCompare();
 }
 let connecting=false;
 async function connectCloud(){
@@ -991,14 +1019,18 @@ async function connectCloudInner(url,key){
 async function manualSync(){
   const c=cloud();if(!c)return;
   if(c.blocked){alert('আগে নিচের বাটন থেকে বেছে নিন কোন ডেটা ঠিক।');return}
-  const ok=await doSync(true);
+  const ok=await doSync(false,true);
   alert(ok?'✅ ব্যাকআপ হয়েছে':'❌ ব্যাকআপ হয়নি: '+errText(cloud().lastErr));
 }
 async function restoreFromSheet(skipConfirm){
   if(!skipConfirm&&!confirm('Sheet-এর ডেটা দিয়ে ফোনের সব হিসাব বদলে যাবে। আগাবেন?'))return;
+  if(syncing){alert('এখন ব্যাকআপ চলছে, কয়েক সেকেন্ড পরে আবার চাপুন');return}
+  syncing=true;clearTimeout(syncTimer);
   let r;
   try{r=await callSheet({action:'restore'})}catch(e){r={ok:false,error:'network'}}
+  finally{syncing=false}
   if(!r||!r.ok||!validData(r)){alert('❌ আনা যায়নি: '+errText((r&&r.error)||'bad_response'));return}
+  saveUndo('Sheet থেকে ফেরত আনার আগে');
   const oldP=parties,oldT=txs;
   parties=r.parties;txs=r.txs;normalize();
   try{localStorage.setItem(LS_P,JSON.stringify(parties));localStorage.setItem(LS_T,JSON.stringify(txs))}
@@ -1015,6 +1047,105 @@ async function forcePush(){
   alert(ok?'✅ Sheet হালনাগাদ হয়েছে':'❌ হয়নি: '+errText(cloud().lastErr));
   renderCloud();
 }
+
+// ═════════ ৩.৩: ফোন বনাম Sheet তুলনা, নিরাপদ মিলিয়ে নেওয়া, আগের অবস্থায় ফেরা ═════════
+function rawLocal(){let P=[],T=[];try{P=JSON.parse(localStorage.getItem(LS_P)||'[]')}catch(e){}try{T=JSON.parse(localStorage.getItem(LS_T)||'[]')}catch(e){}return {P:Array.isArray(P)?P:[],T:Array.isArray(T)?T:[]}}
+function statsOf(P,T){
+  const alive={},bal={};
+  P.forEach(p=>{if(!p.del){alive[p.id]=1;bal[p.id]=num(p.opening)}});
+  let nT=0;
+  T.forEach(t=>{if(t.del||!alive[t.pid])return;nT++;bal[t.pid]+=(t.type==='dr'?num(t.amt):-num(t.amt))});
+  const total=Object.values(bal).filter(b=>b>0).reduce((s,b)=>s+b,0);
+  return {nP:Object.keys(alive).length,nT,total};
+}
+function diffData(LP,LT,SP,ST){
+  const m=a=>{const o={};a.forEach(x=>o[x.id]=JSON.stringify(x));return o};
+  const lp=m(LP),lt=m(LT),sp=m(SP),st=m(ST);
+  const d={sheetOnly:[],phoneOnly:0,changed:[]};
+  ST.forEach(t=>{if(!(t.id in lt))d.sheetOnly.push(t);else if(lt[t.id]!==st[t.id])d.changed.push(t)});
+  SP.forEach(p=>{if(!(p.id in lp))d.sheetOnly.push(p);else if(lp[p.id]!==sp[p.id])d.changed.push(p)});
+  LT.forEach(t=>{if(!(t.id in st))d.phoneOnly++});
+  LP.forEach(p=>{if(!(p.id in sp))d.phoneOnly++});
+  return d;
+}
+function itemLine(x,SP){
+  if(x.pid==null)return `👤 পার্টি: ${esc(x.name)}`;
+  const p=SP.find(q=>q.id===x.pid)||parties.find(q=>q.id===x.pid);
+  return `${dShow(x.date||'')} · ${esc(p?p.name:'?')} · ${(TYPES[x.type]&&TYPES[x.type].lbl)||esc(x.type)} ${fmt(x.amt)}${x.del?' (মুছে ফেলা)':''}`;
+}
+let cmpBusy=false;
+async function loadCompare(){
+  if(cmpBusy)return;cmpBusy=true;
+  const box=()=>document.getElementById('cmp-box');
+  let r;
+  try{r=await callSheet({action:'restore'})}catch(e){r=null}
+  cmpBusy=false;
+  const el=box();if(!el)return;
+  if(!r||!r.ok||!validData(r)){el.innerHTML='⚠️ Sheet খোলা যায়নি (নেট দুর্বল?)। কিছু চাপবেন না, একটু পরে আবার সেটিংসে আসুন।';return}
+  const c=cloud();const L=rawLocal();
+  // হুবহু এক বা এই ফোনেরই পাঠানো → নিজে ঠিক করে নিই
+  const sh=dataHash(r.parties,r.txs);
+  if(sh===dataHash(L.P,L.T)||(c.sent||[]).includes(sh)){
+    c.rev=r.rev;c.blocked=false;c.lastErr=null;saveMeta();
+    renderCloud();renderSyncLine();syncSoon(500);
+    alert('✅ মিলিয়ে দেখলাম: Sheet-এ যা আছে তা এই ফোনেরই পাঠানো। ব্যাকআপ আবার চালু হয়েছে, কিছু চাপতে হবে না।');
+    return;
+  }
+  const a=statsOf(L.P,L.T),b=statsOf(r.parties,r.txs),d=diffData(L.P,L.T,r.parties,r.txs);
+  let h=`<b>তুলনা</b><br>📱 ফোন: ${a.nP} পার্টি · ${a.nT} লেনদেন · মোট পাওনা ${fmt(a.total)}<br>☁️ Sheet: ${b.nP} পার্টি · ${b.nT} লেনদেন · মোট পাওনা ${fmt(b.total)}<br>`;
+  if(!d.sheetOnly.length&&!d.changed.length){
+    h+=`<br>✅ Sheet-এ এমন কিছু নেই যা ফোনে নেই। ফোনে ${d.phoneOnly}টা নতুন জিনিস আছে।<br><b>নিরাপদ পথ: "⬆️ ফোনের ডেটা দিয়ে Sheet হালনাগাদ করুন" চাপুন।</b>`;
+  }else{
+    const list=d.sheetOnly.map(x=>'➕ '+itemLine(x,r.parties)).concat(d.changed.map(x=>'✏️ '+itemLine(x,r.parties)));
+    h+=`<br>⚠️ <b>Sheet-এ ${list.length}টা জিনিস আছে যা ফোনে নেই বা ফোনে অন্যরকম:</b><br>${list.slice(0,15).join('<br>')}${list.length>15?'<br>… আরো '+(list.length-15)+'টা':''}<br>`;
+    if(!d.changed.length){
+      h+=`<br>দুই জায়গাতেই শুধু নতুন এন্ট্রি যোগ হয়েছে, কোনোটা বদলায়নি। <b>নিরাপদ পথ: "🔀 দুটো মিলিয়ে নিন" — কিছু মোছা হবে না।</b>
+      <button class="btn btn-pri" style="margin-top:10px" onclick="mergeSheet()">🔀 দুটো মিলিয়ে নিন</button>`;
+    }else{
+      h+=`<br>একই লেনদেন দুই জায়গায় আলাদা। <b>কোনো বাটন চাপবেন না।</b> এই পাতার স্ক্রিনশট নিয়ে দেখান, মিলিয়ে ঠিক করা হবে।`;
+    }
+  }
+  el.innerHTML=h;
+}
+async function mergeSheet(){
+  if(!confirm('ফোন আর Sheet-এর সব এন্ট্রি একসাথে রাখা হবে। কিছু মোছা হবে না।\nআগাবেন?'))return;
+  let r;
+  try{r=await callSheet({action:'restore'})}catch(e){r=null}
+  if(!r||!r.ok||!validData(r)){alert('❌ Sheet খোলা যায়নি, কিছু বদলানো হয়নি। পরে আবার চেষ্টা করুন।');return}
+  const L=rawLocal(),d=diffData(L.P,L.T,r.parties,r.txs);
+  if(d.changed.length){alert('⚠️ এখন একই লেনদেন দুই জায়গায় আলাদা, তাই মিলিয়ে নেওয়া নিরাপদ নয়। কিছু বদলানো হয়নি।');renderCloud();return}
+  saveUndo('দুটো মিলিয়ে নেওয়ার আগে');
+  const oldP=parties,oldT=txs;
+  const hasP=new Set(L.P.map(x=>x.id)),hasT=new Set(L.T.map(x=>x.id));
+  parties=L.P.concat(r.parties.filter(x=>!hasP.has(x.id)));
+  txs=L.T.concat(r.txs.filter(x=>!hasT.has(x.id)));
+  normalize();
+  if(!save()){parties=oldP;txs=oldT;return}
+  const c=cloud();c.blocked=false;
+  const ok=await doSync(true);
+  alert(ok?`✅ মিলিয়ে নেওয়া হয়েছে: Sheet থেকে ${d.sheetOnly.length}টা এন্ট্রি ফোনে এসেছে, আর Sheet-ও হালনাগাদ হয়েছে।`:'✅ ফোনে মিলিয়ে নেওয়া হয়েছে। Sheet-এ পাঠানো যায়নি, নেট এলে নিজে চেষ্টা হবে।');
+  go('home');
+}
+const LS_U='hisab_undo';
+function saveUndo(label){
+  try{const L=rawLocal();localStorage.setItem(LS_U,JSON.stringify({at:new Date().toISOString(),label,parties:L.P,txs:L.T}))}catch(e){}
+}
+function renderUndo(){
+  const el=document.getElementById('undo-box');if(!el)return;
+  let u=null;try{u=JSON.parse(localStorage.getItem(LS_U)||'null')}catch(e){}
+  el.innerHTML=u&&validData(u)?`<button class="btn btn-sec" style="margin-top:10px" onclick="restoreUndo()">↩️ আগের অবস্থায় ফিরুন</button><div class="note">${esc(u.label)} · ${tShow(u.at)} · ${statsOf(u.parties,u.txs).nT} লেনদেন</div>`:'';
+}
+function restoreUndo(){
+  let u=null;try{u=JSON.parse(localStorage.getItem(LS_U)||'null')}catch(e){}
+  if(!u||!validData(u)){alert('আগের কোনো অবস্থা রাখা নেই');return}
+  const st=statsOf(u.parties,u.txs);
+  if(!confirm(`ফোনের হিসাব ফিরে যাবে "${u.label}" অবস্থায় (${tShow(u.at)}):\n${st.nP} পার্টি, ${st.nT} লেনদেন, মোট পাওনা ${fmt(st.total)}\nএখনকার অবস্থাও রেখে দেওয়া হবে, চাইলে আবার ফিরতে পারবেন।\nআগাবেন?`))return;
+  saveUndo('আগের অবস্থায় ফেরার আগে');
+  const oldP=parties,oldT=txs;
+  parties=u.parties;txs=u.txs;normalize();
+  if(!save()){parties=oldP;txs=oldT;return}
+  alert('✅ আগের অবস্থায় ফেরা হয়েছে');go('home');
+}
 function disconnectCloud(){
   if(!confirm('অটো-ব্যাকআপ বন্ধ করবেন? (Sheet-এর ডেটা থেকে যাবে)'))return;
   delete meta.cloud;saveMeta();renderCloud();renderSyncLine();
@@ -1026,8 +1157,24 @@ window.addEventListener('storage',e=>{
   const on=document.querySelector('.page.on');const pg=on?on.id.slice(3):'';
   if(['home','detail','settings','report','trash'].includes(pg))go(pg);else renderSyncLine();
 });
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncSoon(1000)});
-setInterval(()=>{if(loaded&&isDirty())doSync(false)},60000);
+// ৩.৪: অ্যাপ পেছনে গেলে/বন্ধ হলে বাকি ব্যাকআপ keepalive দিয়ে পাঠাই (উত্তর পড়া যায় না; পরের বার অ্যাপ নিজে মিলিয়ে নেয়)
+function flushOnLeave(){
+  try{
+    const c=cloud();
+    if(!loaded||!c||!c.url||!c.key||c.blocked||syncing||!isDirty())return;
+    if(typeof navigator!=='undefined'&&navigator.onLine===false)return;
+    const P=JSON.parse(localStorage.getItem(LS_P)||'[]'),T=JSON.parse(localStorage.getItem(LS_T)||'[]');
+    const body=JSON.stringify({key:c.key,action:'sync',baseRev:c.rev==null?null:c.rev,force:false,parties:P,txs:T,device:navigator.userAgent.slice(0,80)});
+    if(new Blob([body]).size>60000)return;   // ব্রাউজারের keepalive সীমা ৬৪KB
+    const h=dataHash(P,T);
+    c.sent=[h].concat((c.sent||[]).filter(x=>x!==h)).slice(0,300);saveMeta();
+    clearTimeout(syncTimer);
+    fetch(c.url,{method:'POST',body,keepalive:true}).catch(()=>{});
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncSoon(1000);else flushOnLeave()});
+window.addEventListener('pagehide',flushOnLeave);
+setInterval(()=>{const c=cloud();if(loaded&&(isDirty()||(c&&c.blocked&&c.lastErr==='conflict')))doSync(false)},60000);
 </script>
 </body>
 </html>
